@@ -8,9 +8,9 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 ADMIN_KEY = os.getenv("ADMIN_KEY", "bharatbot-admin-2024")
 
 COLLECTION_NAME = "rag_documents"
-EMBEDDING_MODEL = "models/text-embedding-004"
-EMBEDDING_DIM = 768
-GENERATION_MODEL = "gemini-2.5-pro-preview-06-05"
+EMBEDDING_MODEL = "gemini-embedding-001"
+EMBEDDING_DIM = 3072  # gemini-embedding-001 output dimension
+GENERATION_MODEL = "gemini-2.5-pro"  # primary; rag.py falls back to gemini-2.5-flash
 TOP_K = 5
 BATCH_SIZE = 50
 

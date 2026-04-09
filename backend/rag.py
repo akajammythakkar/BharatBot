@@ -61,9 +61,9 @@ User question (in {lang_name}): {query}
 Remember: Respond ONLY in {lang_name}."""
 
     models_to_try = [
-        "gemini-2.5-pro-preview-06-05",
-        "gemini-2.0-pro-exp",
-        "gemini-1.5-pro",
+        GENERATION_MODEL,       # gemini-2.5-pro
+        "gemini-3-pro-preview",
+        "gemini-2.5-flash",
     ]
 
     last_error = None
@@ -84,7 +84,12 @@ Remember: Respond ONLY in {lang_name}."""
 
 
 def query_rag(user_query: str, language: str = "en") -> dict:
-    client = MilvusClient(uri=ZILLIZ_URI, token=ZILLIZ_TOKEN)
+    try:
+        client = MilvusClient(uri=ZILLIZ_URI, token=ZILLIZ_TOKEN)
+        client.list_collections()
+    except Exception:
+        user, password = ZILLIZ_TOKEN.split(":", 1)
+        client = MilvusClient(uri=ZILLIZ_URI, user=user, password=password)
     query_embedding = get_embedding(user_query)
     sources = search_documents(client, query_embedding)
     answer = generate_answer(user_query, sources, language)
