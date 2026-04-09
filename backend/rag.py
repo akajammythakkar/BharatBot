@@ -1,8 +1,9 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types as genai_types
 from pymilvus import MilvusClient
 from config import *
 
-genai.configure(api_key=GEMINI_API_KEY)
+_genai_client = genai.Client(api_key=GEMINI_API_KEY)
 
 LANGUAGE_NAMES = {
     "en": "English",
@@ -21,12 +22,12 @@ Be concise, helpful, and friendly."""
 
 
 def get_embedding(text: str) -> list:
-    result = genai.embed_content(
+    result = _genai_client.models.embed_content(
         model=EMBEDDING_MODEL,
-        content=text,
-        task_type="retrieval_query"
+        contents=text,
+        config=genai_types.EmbedContentConfig(task_type="retrieval_query")
     )
-    return result["embedding"]
+    return result.embeddings[0].values
 
 
 def search_documents(client: MilvusClient, query_embedding: list) -> list:
@@ -59,7 +60,6 @@ User question (in {lang_name}): {query}
 
 Remember: Respond ONLY in {lang_name}."""
 
-    # Try generation models in order of preference
     models_to_try = [
         "gemini-2.5-pro-preview-06-05",
         "gemini-2.0-pro-exp",
@@ -69,11 +69,11 @@ Remember: Respond ONLY in {lang_name}."""
     last_error = None
     for model_name in models_to_try:
         try:
-            model = genai.GenerativeModel(
-                model_name=model_name,
-                system_instruction=SYSTEM_PROMPT
+            response = _genai_client.models.generate_content(
+                model=model_name,
+                contents=user_message,
+                config=genai_types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT)
             )
-            response = model.generate_content(user_message)
             return response.text
         except Exception as e:
             last_error = e

@@ -1,12 +1,13 @@
 import pandas as pd
-import google.generativeai as genai
+from google import genai
+from google.genai import types as genai_types
 from pymilvus import MilvusClient, DataType
 from langdetect import detect, DetectorFactory
 from config import *
 import time
 
 DetectorFactory.seed = 42
-genai.configure(api_key=GEMINI_API_KEY)
+_genai_client = genai.Client(api_key=GEMINI_API_KEY)
 
 
 def get_milvus_client():
@@ -22,12 +23,12 @@ def detect_language(text: str) -> str:
 
 
 def embed_texts(texts: list) -> list:
-    result = genai.embed_content(
+    result = _genai_client.models.embed_content(
         model=EMBEDDING_MODEL,
-        content=texts,
-        task_type="retrieval_document"
+        contents=texts,
+        config=genai_types.EmbedContentConfig(task_type="retrieval_document")
     )
-    return result["embedding"]
+    return [e.values for e in result.embeddings]
 
 
 def setup_collection(client: MilvusClient):
