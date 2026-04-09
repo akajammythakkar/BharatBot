@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ ./backend/
 COPY frontend/ ./frontend/
-COPY dataset_gemini_3.1_flash_balanced.xlsx .
+# dataset_gemini_3.1_flash_balanced.xlsx is ingested separately via `python backend/ingest.py`
 
 ENV PYTHONPATH=/app
 EXPOSE 8080
