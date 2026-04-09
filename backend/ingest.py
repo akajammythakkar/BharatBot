@@ -11,14 +11,7 @@ _genai_client = genai.Client(api_key=GEMINI_API_KEY)
 
 
 def get_milvus_client():
-    # Try token auth first, fall back to user/password
-    try:
-        client = MilvusClient(uri=ZILLIZ_URI, token=ZILLIZ_TOKEN)
-        client.list_collections()  # test connection
-        return client
-    except Exception:
-        user, password = ZILLIZ_TOKEN.split(":", 1)
-        return MilvusClient(uri=ZILLIZ_URI, user=user, password=password)
+    return MilvusClient(uri=ZILLIZ_URI, token=ZILLIZ_TOKEN)
 
 
 def detect_language(text: str) -> str:
