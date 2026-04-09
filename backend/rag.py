@@ -87,7 +87,7 @@ Instructions:
 - Respond ONLY in {lang_name}
 - Be thorough and educational"""
 
-    models_to_try = [GENERATION_MODEL, "gemini-2.5-flash", "gemini-2.0-flash"]
+    models_to_try = [GENERATION_MODEL, "gemini-2.5-pro", "gemini-2.5-flash"]
     last_error = None
 
     for model_name in models_to_try:
