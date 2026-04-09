@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from rag import query_rag
 from config import ADMIN_KEY
 
-app = FastAPI(title="BharatBot API", version="1.0.0")
+app = FastAPI(title="BharatBot API", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -31,11 +31,12 @@ class ChatResponse(BaseModel):
     response: str
     language: str
     sources: list
+    web_sources: list = []
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "bot": "BharatBot"}
+    return {"status": "ok", "bot": "BharatBot", "version": "2.0"}
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -63,7 +64,6 @@ async def trigger_ingest(x_admin_key: str = Header(None)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Serve frontend
 frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
 app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
