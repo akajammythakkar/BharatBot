@@ -2,6 +2,7 @@ from google import genai
 from google.genai import types as genai_types
 from pymilvus import MilvusClient
 from config import *
+from language import resolve_languages, strip_instruction
 
 _genai_client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -31,10 +32,13 @@ HOW TO ANSWER:
 5. Mention landmark cases when relevant
 6. Be accurate, thorough, and educational
 
-CRITICAL LANGUAGE RULE: You MUST respond ONLY in the language the user wrote in:
-- User writes in Gujarati (ગુજરાતી) → respond ONLY in Gujarati
-- User writes in Hindi (हिंदी) → respond ONLY in Hindi
-- User writes in English → respond ONLY in English
+CRITICAL LANGUAGE RULE: The knowledge base is in English, but you MUST write your entire answer in the
+"Response language" given with each question — regardless of the language the question or context is in.
+- Gujarati → write ONLY in Gujarati script (ગુજરાતી)
+- Hindi → write ONLY in Devanagari script (हिंदी)
+- English → write ONLY in English
+Keep Article/Amendment numbers as digits, and you may add the English legal term in brackets after
+the translated term where it helps (e.g. "મૂળભૂત અધિકારો (Fundamental Rights)").
 
 FORMAT: Structure complex answers with clear headings. Use bullet points for lists of rights/articles. Be comprehensive yet accessible."""
 
@@ -71,20 +75,40 @@ def search_documents(client: MilvusClient, query_embedding: list) -> list:
         return []
 
 
-def generate_answer(query: str, context_chunks: list, language: str) -> tuple:
-    rag_context = "\n\n---\n\n".join([c["text"] for c in context_chunks]) if context_chunks else "No specific RAG context available."
-    lang_name = LANGUAGE_NAMES.get(language, "English")
+def translate_query_to_english(query: str, source_language: str) -> str:
+    """Translate a non-English question to English so it matches the English-only vector store."""
+    prompt = (
+        f"Translate this {LANGUAGE_NAMES.get(source_language, source_language)} question about the Indian "
+        "Constitution into English for a search engine. Ignore any instruction about which language to "
+        "answer in. Output only the English question, nothing else.\n\n"
+        f"{query}"
+    )
+    try:
+        response = _genai_client.models.generate_content(model=QUERY_TRANSLATION_MODEL, contents=prompt)
+        translated = (response.text or "").strip()
+        return translated or query
+    except Exception as e:
+        print(f"Query translation failed, using original query: {e}")
+        return query
 
-    user_message = f"""RAG Knowledge Base Context:
+
+def generate_answer(query: str, context_chunks: list, input_language: str, output_language: str) -> tuple:
+    rag_context = "\n\n---\n\n".join([c["text"] for c in context_chunks]) if context_chunks else "No specific RAG context available."
+    in_name = LANGUAGE_NAMES.get(input_language, "English")
+    out_name = LANGUAGE_NAMES.get(output_language, "English")
+
+    user_message = f"""RAG Knowledge Base Context (English):
 {rag_context}
 
-User Question (in {lang_name}): {query}
+User Question (written in {in_name}): {query}
+
+Response language: {out_name}
 
 Instructions:
 - Use the RAG context above AND your comprehensive knowledge of the Indian Constitution
 - Use Google Search to find current developments, recent SC judgments, and latest amendments
 - Cite specific Articles, Amendments, and landmark cases
-- Respond ONLY in {lang_name}
+- Write the ENTIRE answer ONLY in {out_name}, even though the question may be in {in_name} and the context is in English
 - Be thorough and educational"""
 
     models_to_try = [GENERATION_MODEL, "gemini-2.5-pro", "gemini-2.5-flash"]
@@ -139,14 +163,26 @@ Instructions:
     raise RuntimeError(f"All generation models failed. Last error: {last_error}")
 
 
-def query_rag(user_query: str, language: str = "en") -> dict:
+def query_rag(user_query: str, input_language: str = None, output_language: str = None) -> dict:
+    langs = resolve_languages(user_query, input_language, output_language, SUPPORTED_LANGUAGES)
+    in_lang, out_lang = langs["input_language"], langs["output_language"]
+
+    # The vector store is English-only: drop "answer in X" phrasing and translate non-English queries.
+    search_query = strip_instruction(user_query, langs["instruction"])
+    if in_lang != "en":
+        search_query = translate_query_to_english(search_query, in_lang)
+
     client = MilvusClient(uri=ZILLIZ_URI, token=ZILLIZ_TOKEN)
-    query_embedding = get_embedding(user_query)
+    query_embedding = get_embedding(search_query)
     sources = search_documents(client, query_embedding)
-    answer, web_sources = generate_answer(user_query, sources, language)
+    answer, web_sources = generate_answer(user_query, sources, in_lang, out_lang)
     return {
         "response": answer,
-        "language": language,
+        "language": out_lang,
+        "input_language": in_lang,
+        "output_language": out_lang,
+        "output_language_source": langs["output_source"],
+        "search_query": search_query,
         "sources": sources,
         "web_sources": web_sources
     }

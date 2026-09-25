@@ -3,15 +3,17 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 
 from rag import query_rag
-from config import ADMIN_KEY
+from config import ADMIN_KEY, SUPPORTED_LANGUAGES
+from language import normalize
 
-app = FastAPI(title="BharatBot API", version="2.0.0")
+app = FastAPI(title="BharatBot API", version="2.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,29 +26,46 @@ app.add_middleware(
 
 class ChatRequest(BaseModel):
     message: str
-    language: str = "en"
+    # Optional; "auto"/empty means detect. Falls back to English.
+    input_language: Optional[str] = None
+    output_language: Optional[str] = None
+    # Deprecated alias for output_language, kept for older clients.
+    language: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
     response: str
-    language: str
+    language: str  # same as output_language
+    input_language: str
+    output_language: str
+    output_language_source: str  # prompt | selected | input | default
+    search_query: str  # English query sent to the vector store
     sources: list
     web_sources: list = []
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "bot": "BharatBot", "version": "2.0"}
+    return {"status": "ok", "bot": "BharatBot", "version": "2.1"}
+
+
+@app.get("/languages")
+def languages():
+    return {"languages": SUPPORTED_LANGUAGES, "default": "en"}
 
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
-    if req.language not in ["en", "hi", "gu"]:
-        raise HTTPException(status_code=400, detail="Language must be en, hi, or gu")
+    output_language = req.output_language or req.language
     try:
-        result = query_rag(req.message, req.language)
+        normalize(req.input_language, SUPPORTED_LANGUAGES)
+        normalize(output_language, SUPPORTED_LANGUAGES)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    try:
+        result = query_rag(req.message, req.input_language, output_language)
         return ChatResponse(**result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")

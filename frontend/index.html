@@ -68,10 +68,15 @@ header{flex-shrink:0;background:rgba(7,7,15,0.88);backdrop-filter:blur(24px);bor
 @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(15,155,46,0.5)}50%{opacity:.7;box-shadow:0 0 0 5px transparent}}
 
 /* Lang */
-.langs{display:flex;gap:3px}
-.lb{cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted2);border-radius:8px;padding:5px 11px;font-size:0.76rem;font-weight:500;font-family:inherit;transition:all .18s;white-space:nowrap}
-.lb:hover{border-color:rgba(255,153,51,0.35);color:var(--text)}
-.lb.active{border-color:var(--saffron);color:var(--saffron);background:rgba(255,153,51,0.07);box-shadow:0 0 14px rgba(255,153,51,0.12)}
+.lang-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-bottom:8px;font-size:0.72rem;color:var(--muted2)}
+.lang-field{display:flex;align-items:center;gap:6px}
+.lang-sel{cursor:pointer;appearance:none;-webkit-appearance:none;border:1px solid var(--border2);background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238f93b0' fill='none' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 9px center;color:var(--text);border-radius:8px;padding:5px 26px 5px 10px;font-size:0.74rem;font-family:inherit;transition:border-color .18s}
+.lang-sel:hover,.lang-sel:focus{border-color:rgba(255,153,51,0.45);outline:none}
+.lang-sel.set{border-color:var(--saffron);color:var(--saffron)}
+.lang-sel option{background:var(--bg2);color:var(--text)}
+.lang-arrow{opacity:0.5}
+@media(max-width:480px){.lang-arrow{display:none}}
+.lang-tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;border:1px solid var(--border2);font-size:0.62rem;color:var(--muted2)}
 
 /* ── CHAT WRAP ── */
 .chat-wrap{flex:1;overflow-y:auto;display:flex;flex-direction:column;position:relative}
@@ -298,11 +303,6 @@ header{flex-shrink:0;background:rgba(7,7,15,0.88);backdrop-filter:blur(24px);bor
     </a>
     <div class="hspacer"></div>
     <div class="status"><span class="sdot"></span>RAG + Web Active</div>
-    <div class="langs">
-      <button class="lb active" data-lang="en">🇬🇧 English</button>
-      <button class="lb" data-lang="hi">हिंदी</button>
-      <button class="lb" data-lang="gu">ગુજરાતી</button>
-    </div>
   </div>
 </header>
 
@@ -315,7 +315,7 @@ header{flex-shrink:0;background:rgba(7,7,15,0.88);backdrop-filter:blur(24px);bor
     <div class="hero">
       <span class="hero-emoji">⚖️</span>
       <h1 class="hero-title">Know Your Constitution</h1>
-      <p class="hero-sub">Ask anything about the Indian Constitution — Articles, Amendments, Fundamental Rights, landmark judgments — in English, Hindi, or Gujarati.</p>
+      <p class="hero-sub">Ask anything about the Indian Constitution — Articles, Amendments, Fundamental Rights, landmark judgments — in English, Hindi, or Gujarati. Ask in one language, get the answer in another.</p>
     </div>
     <div class="preamble">
       <strong>"WE, THE PEOPLE OF INDIA</strong> — having solemnly resolved to constitute India into a <strong>SOVEREIGN SOCIALIST SECULAR DEMOCRATIC REPUBLIC</strong> and to secure to all its citizens JUSTICE, LIBERTY, EQUALITY and FRATERNITY..."
@@ -364,6 +364,25 @@ header{flex-shrink:0;background:rgba(7,7,15,0.88);backdrop-filter:blur(24px);bor
 <!-- INPUT -->
 <div class="input-area">
   <div class="input-shell">
+    <div class="lang-bar">
+      <label class="lang-field">Ask in
+        <select class="lang-sel" id="inLang" title="Language of your question (optional)">
+          <option value="auto">Auto-detect</option>
+          <option value="en">English</option>
+          <option value="hi">हिंदी (Hindi)</option>
+          <option value="gu">ગુજરાતી (Gujarati)</option>
+        </select>
+      </label>
+      <span class="lang-arrow">→</span>
+      <label class="lang-field">Answer in
+        <select class="lang-sel" id="outLang" title="Language of the answer (optional). You can also write &quot;answer in Gujarati&quot; in your question.">
+          <option value="auto">Auto</option>
+          <option value="en">English</option>
+          <option value="hi">हिंदी (Hindi)</option>
+          <option value="gu">ગુજરાતી (Gujarati)</option>
+        </select>
+      </label>
+    </div>
     <div class="input-box">
       <textarea id="inp" rows="1" placeholder="Ask about Indian Constitution..."></textarea>
       <button class="send" id="sendBtn">
@@ -395,13 +414,17 @@ const toast   = document.getElementById('toast');
 const chatWrap = document.getElementById('chatWrap');
 const scrollFab = document.getElementById('scrollFab');
 
-let lang = 'en', loading = false;
+const inLang  = document.getElementById('inLang');
+const outLang = document.getElementById('outLang');
+let loading = false;
 
 const placeholders = {
+  auto:'Ask about Indian Constitution...',
   en:'Ask about Indian Constitution...',
   hi:'भारतीय संविधान के बारे में पूछें...',
   gu:'ભારતીય બંધારણ વિશે પૂછો...'
 };
+const langLabels = { en:'English', hi:'हिंदी', gu:'ગુજરાતી' };
 
 // ── BharatBot Avatar SVG ──
 function botAvatar() {
@@ -430,14 +453,19 @@ function botAvatar() {
   </svg>`;
 }
 
-// ── Lang buttons ──
-document.querySelectorAll('.lb').forEach(b => {
-  b.addEventListener('click', () => {
-    document.querySelectorAll('.lb').forEach(x => x.classList.remove('active'));
-    b.classList.add('active'); lang = b.dataset.lang;
-    inp.placeholder = placeholders[lang];
-  });
-});
+// ── Language selectors (optional; "auto" lets the server decide, falling back to English) ──
+function loadLangPref(key) { try { return localStorage.getItem(key) || 'auto'; } catch { return 'auto'; } }
+function saveLangPref(key, v) { try { localStorage.setItem(key, v); } catch {} }
+function syncLangUI() {
+  inLang.classList.toggle('set', inLang.value !== 'auto');
+  outLang.classList.toggle('set', outLang.value !== 'auto');
+  inp.placeholder = placeholders[inLang.value] || placeholders.auto;
+}
+inLang.value = loadLangPref('bb_in_lang');
+outLang.value = loadLangPref('bb_out_lang');
+inLang.addEventListener('change', () => { saveLangPref('bb_in_lang', inLang.value); syncLangUI(); });
+outLang.addEventListener('change', () => { saveLangPref('bb_out_lang', outLang.value); syncLangUI(); });
+syncLangUI();
 
 // ── Suggestion cards ──
 document.querySelectorAll('.scard').forEach(c => {
@@ -518,7 +546,7 @@ function addTyping() {
 
 function removeTyping() { document.getElementById('typing')?.remove(); }
 
-function addBot(text, sources, webSources) {
+function addBot(text, sources, webSources, langInfo) {
   const row=document.createElement('div'); row.className='msg-row bot';
 
   let ragHtml='';
@@ -549,9 +577,16 @@ function addBot(text, sources, webSources) {
       <button class="copy-btn" onclick="copyMsg(this,'${encodeURIComponent(rawText)}')">Copy</button>
       <div class="bubble bot"><p>${md(text)}</p></div>
       <div class="src-section">${ragHtml}${webHtml}</div>
-      <div class="ts">${timestamp()}</div>
+      <div class="ts">${timestamp()}${langTag(langInfo)}</div>
     </div>`;
   msgs.appendChild(row); smoothScrollBottom();
+}
+
+function langTag(info) {
+  if (!info?.output_language) return '';
+  const from = langLabels[info.input_language] || info.input_language;
+  const to = langLabels[info.output_language] || info.output_language;
+  return `<span class="lang-tag">🌐 ${from === to ? esc(to) : `${esc(from)} → ${esc(to)}`}</span>`;
 }
 
 function copyMsg(btn, encoded) {
@@ -576,11 +611,11 @@ async function send() {
   try {
     const r=await fetch('/chat',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({message:text,language:lang})
+      body:JSON.stringify({message:text,input_language:inLang.value,output_language:outLang.value})
     });
     if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.detail||`HTTP ${r.status}`);}
     const d=await r.json();
-    removeTyping(); addBot(d.response,d.sources,d.web_sources||[]);
+    removeTyping(); addBot(d.response,d.sources,d.web_sources||[],d);
   } catch(e) {
     removeTyping(); showToast('Something went wrong. Please try again.'); console.error(e);
   } finally {
