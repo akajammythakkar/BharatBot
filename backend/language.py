@@ -84,6 +84,9 @@ def find_requested_language(text: str) -> tuple[Optional[str], Optional[str]]:
             for code in _LANG_WORDS:
                 if match.group(code):
                     phrase = match.groupdict().get("instr") or match.group(0)
+                    # "Answer in English": the verb only carries the instruction, drop it too.
+                    if phrase != match.group(0) and not match.group(0)[: -len(phrase)].split()[1:]:
+                        phrase = match.group(0)
                     return code, phrase
     return None, None
 
