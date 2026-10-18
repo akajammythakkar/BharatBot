@@ -111,7 +111,7 @@ Instructions:
 - Write the ENTIRE answer ONLY in {out_name}, even though the question may be in {in_name} and the context is in English
 - Be thorough and educational"""
 
-    models_to_try = [GENERATION_MODEL, "gemini-2.5-pro", "gemini-2.5-flash"]
+    models_to_try = [GENERATION_MODEL, "gemini-3.8-flash"]
     last_error = None
 
     for model_name in models_to_try:

@@ -2,8 +2,8 @@
 > Multilingual RAG Chatbot — English | हिंदी | ગુજરાતી
 
 ## Stack
-- **LLM**: Gemini 2.5 Pro
-- **Embeddings**: Google text-embedding-004
+- **LLM**: Gemini 3.1 Pro (fallback: Gemini 3.8 Flash)
+- **Embeddings**: gemini-embedding-001
 - **Vector DB**: Zilliz Cloud (Milvus)
 - **Backend**: FastAPI
 - **Frontend**: Pure HTML/CSS/JS (Glassmorphism UI)
