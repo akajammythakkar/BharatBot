@@ -18,6 +18,7 @@ steps:
       - --port=8080
       - --memory=2Gi
       - --cpu=2
+      - --concurrency=20
       - --set-env-vars=ZILLIZ_URI=$$ZILLIZ_URI,ZILLIZ_TOKEN=$$ZILLIZ_TOKEN,GEMINI_API_KEY=$$GEMINI_API_KEY
     secretEnv: ['ZILLIZ_URI', 'ZILLIZ_TOKEN', 'GEMINI_API_KEY']
 

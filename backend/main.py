@@ -55,7 +55,7 @@ def languages():
 
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest):
+def chat(req: ChatRequest):
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
     output_language = req.output_language or req.language
@@ -72,7 +72,7 @@ async def chat(req: ChatRequest):
 
 
 @app.post("/ingest")
-async def trigger_ingest(x_admin_key: str = Header(None)):
+def trigger_ingest(x_admin_key: str = Header(None)):
     if x_admin_key != ADMIN_KEY:
         raise HTTPException(status_code=403, detail="Forbidden")
     try:
